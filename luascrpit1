@@ -1,12 +1,12 @@
 -- ========== PREVENT DOUBLE EXECUTION CRASH ==========
-if getgenv()._UltimateESPLoaded_V16_5 then 
+if getgenv()._UltimateESPLoaded_V16_6 then 
     warn("Script already running! Restart game to inject safely.") 
     return 
 end
-getgenv()._UltimateESPLoaded_V16_5 = true
+getgenv()._UltimateESPLoaded_V16_6 = true
 
 --[[
-    BLOX FRUITS - ULTIMATE ESP v16.5 (FAST MODE + ROBUST AUTO HOP + ANTI-CRASH)
+    BLOX FRUITS - ULTIMATE ESP v16.6 (FAST MODE + ANTI-BOUNCE CRASH + ROBUST AUTO HOP)
 ]]
 
 local Players = game:GetService("Players")
@@ -31,34 +31,36 @@ local Settings = {
     ScanInterval = 4,
     ESPColor = Color3.fromRGB(255, 80, 80),
     ESPTransparency = 0.3,
-    FastModeEnabled = true, -- لتخفيف الرام ومنع الكراش
+    FastModeEnabled = true, -- تفعيل وضع التخفيف
     AutoExecuteScript = [[
         loadstring(game:HttpGet("https://raw.githubusercontent.com/ns72/lua-scrpit-1/refs/heads/main/luascrpit2"))()
     ]]
 }
 
--- ========== FAST MODE (ANTI-CRASH) ==========
+-- ========== FAST MODE (ANTI-CRASH & FPS BOOST) ==========
 local function EnableFastMode()
     if not Settings.FastModeEnabled then return end
     
-    Lighting.GlobalShadows = false
-    Lighting.FogEnd = 9e9
-    Lighting.ShadowSoftness = 0
-    
-    if sethiddenproperty then
-        pcall(function() sethiddenproperty(Lighting, "Technology", 2) end)
-    end
-    
-    for _, v in pairs(Workspace:GetDescendants()) do
-        if v:IsA("BasePart") and not v.Parent:FindFirstChild("Humanoid") then
-            v.Material = Enum.Material.Plastic
-            v.Reflectance = 0
-        elseif v:IsA("Decal") or v:IsA("Texture") then
-            v.Transparency = 1
-        elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
-            v.Lifetime = NumberRange.new(0)
+    pcall(function()
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 9e9
+        Lighting.ShadowSoftness = 0
+        
+        if sethiddenproperty then
+            pcall(function() sethiddenproperty(Lighting, "Technology", 2) end)
         end
-    end
+        
+        for _, v in pairs(Workspace:GetDescendants()) do
+            if v:IsA("BasePart") and not v.Parent:FindFirstChild("Humanoid") then
+                v.Material = Enum.Material.Plastic
+                v.Reflectance = 0
+            elseif v:IsA("Decal") or v:IsA("Texture") then
+                v.Transparency = 1
+            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                v.Lifetime = NumberRange.new(0)
+            end
+        end
+    end)
     print("🚀 Fast Mode Enabled: Memory Optimized!")
 end
 EnableFastMode()
@@ -233,7 +235,6 @@ local function ScanFullMap()
         
         table.sort(newFruitList, function(a,b) return a.Rank > b.Rank end)
         
-        -- تنظيف ESP للفواكه التي اختفت لمنع الكراش
         for fruitInstance, esp in pairs(ESPObjects) do
             if not fruitInstance or not fruitInstance.Parent or not esp.FruitData.Root or not esp.FruitData.Root.Parent then
                 if esp.Billboard then esp.Billboard:Destroy() end
@@ -267,8 +268,7 @@ local function ScanFullMap()
         ScanCount = ScanCount + 1
         TotalFruitsFound = #newFruitList
         ScanInProgress = false
-        
-        table.clear(seen) -- مسح الجدول لتحرير الرام
+        table.clear(seen)
     end)
 end
 
@@ -282,17 +282,18 @@ local function UpdateAllDistances()
 end
 
 -- ========== DELTA-TIME FLY ENGINE ==========
-local function SmoothDeltaFly(targetWorldPos)
+local function SmoothDeltaFly(targetFruitData)
     local char = LocalPlayer.Character
     if not char then return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
     local humanoid = char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not humanoid then return end
+    if not hrp or not humanoid or not targetFruitData.Root then return end
 
     EnablePhysicsBypass()
     humanoid.PlatformStand = true
 
     local startPos = hrp.Position
+    local targetWorldPos = targetFruitData.Root.Position
     local skyY = math.max(startPos.Y, targetWorldPos.Y) + Settings.SkyAltitude
     
     local waypoints = {
@@ -303,6 +304,8 @@ local function SmoothDeltaFly(targetWorldPos)
 
     for _, point in ipairs(waypoints) do
         while hrp and hrp.Parent and (hrp.Position - point).Magnitude > 5 do
+            -- حماية: إذا اختفت الفاكهة أثناء الطيران، أوقف الطيران فوراً
+            if not targetFruitData.Root or not targetFruitData.Root.Parent then break end
             if not Settings.AutoFarmEnabled and IsFarmingFruit then break end
             
             local dt = RunService.Heartbeat:Wait()
@@ -357,7 +360,7 @@ local function AutoFarmLogic()
 
     local targetFruit = CachedFruits[1] 
     if targetFruit and targetFruit.Root and targetFruit.Root.Parent then
-        SmoothDeltaFly(targetFruit.Root.Position)
+        SmoothDeltaFly(targetFruit)
         
         local char = LocalPlayer.Character
         if char and char:FindFirstChild("HumanoidRootPart") then
@@ -373,6 +376,11 @@ local function AutoFarmLogic()
             DisablePhysicsBypass()
         end
         
+        -- حذف الفاكهة من الذاكرة فوراً لمنع تكرار الطيران صعوداً ونزولاً
+        table.remove(CachedFruits, 1)
+        TotalFruitsFound = #CachedFruits
+        
+        -- تقليل وقت الانتظار من 10 ثواني إلى 1.5 ثانية (10 ثواني تسبب تجميد للفيزياء وكراش)
         task.wait(1.5)
         
         local backpackTools = LocalPlayer.Backpack:GetChildren()
@@ -403,7 +411,7 @@ local function CreateUI()
     Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
     
     local title = Instance.new("TextLabel")
-    title.Size, title.BackgroundColor3, title.Font, title.TextColor3, title.TextScaled, title.Text, title.Parent = UDim2.new(1, 0, 0, 45), Color3.fromRGB(255,80,80), Enum.Font.GothamBlack, Color3.new(1,1,1), true, "🍈 FINAL ESP v16.5", main
+    title.Size, title.BackgroundColor3, title.Font, title.TextColor3, title.TextScaled, title.Text, title.Parent = UDim2.new(1, 0, 0, 45), Color3.fromRGB(255,80,80), Enum.Font.GothamBlack, Color3.new(1,1,1), true, "🍈 FINAL ESP v16.6", main
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
     
     local dragging, startPos, frameStart = false, nil, nil
@@ -451,7 +459,7 @@ local function CreateUI()
         
         btn.MouseButton1Click:Connect(function()
             for _, cached in ipairs(CachedFruits) do
-                if cached.Name == fruit.Name and cached.Root then SmoothDeltaFly(cached.Root.Position) break end
+                if cached.Name == fruit.Name and cached.Root then SmoothDeltaFly(cached) break end
             end
         end)
     end
@@ -497,4 +505,4 @@ end)
 
 CreateUI()
 task.defer(ScanFullMap)
-print("🍈 FINAL ESP v16.5 LOADED - ROBUST SERVER HOP + FAST MODE ENABLED")
+print("🍈 FINAL ESP v16.6 LOADED - FAST MODE + ANTI-BOUNCE ENABLED")
