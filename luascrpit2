@@ -1,5 +1,5 @@
 --[[
-    BLOX FRUITS - ULTIMATE ESP v16.4 (ALWAYS MARINES + AUTO FARM & HOP ON BY DEFAULT)
+    BLOX FRUITS - ULTIMATE ESP v16.5 (ROBUST AUTO HOP + ALWAYS MARINES)
 ]]
 
 local Players = game:GetService("Players")
@@ -11,11 +11,11 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- ========== CONFIG (ALL ENABLED BY DEFAULT) ==========
+-- ========== CONFIG ==========
 local Settings = {
     ESPEnabled = true,
-    AutoFarmEnabled = true, -- مفعل تلقائياً دائماً
-    AutoHopEnabled = true,  -- مفعل تلقائياً دائماً
+    AutoFarmEnabled = true, 
+    AutoHopEnabled = true,  
     FlySpeed = 320,
     SkyAltitude = 400,
     MaxESPDistance = 999999,
@@ -31,20 +31,17 @@ local Settings = {
 -- ========== ROBUST AUTO JOIN MARINES ==========
 local function AutoJoinMarines()
     task.spawn(function()
-        -- الانتظار حتى اكتمال تحميل اللعبة والواجهة
         repeat task.wait(0.5) until game:IsLoaded() and LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
         
         local remotes = ReplicatedStorage:WaitForChild("Remotes", 15)
         local commF = remotes and remotes:WaitForChild("CommF_", 15)
         
         if commF then
-            -- محاولة اختيار الفريق لعدة مرات لضمان الاستجابة
             for i = 1, 10 do
                 pcall(function()
                     commF:InvokeServer("SetTeam", "Marines")
                 end)
                 
-                -- التحقق مما إذا تم التبديل للفريق بنجاح
                 if LocalPlayer.Team and (LocalPlayer.Team.Name == "Marines" or LocalPlayer.Team.Name == "Marine") then
                     break
                 end
@@ -54,7 +51,6 @@ local function AutoJoinMarines()
     end)
 end
 
--- تشغيل فحص واختيار الفريق فوراً
 AutoJoinMarines()
 
 -- ========== FRUIT DATABASE ==========
@@ -132,7 +128,7 @@ local function DisablePhysicsBypass()
     if ZeroGravityConn then ZeroGravityConn:Disconnect() ZeroGravityConn = nil end
 end
 
--- ========== SERVER HOP ==========
+-- ========== ADVANCED SERVER HOP (RETRY LOOP) ==========
 local function ServerHop()
     if IsHopping then return end
     IsHopping = true
@@ -143,24 +139,32 @@ local function ServerHop()
     end
 
     local PlaceID = game.PlaceId
-    local AllIDs = {}
-    local success, result = pcall(function()
-        return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..PlaceID.."/servers/Public?sortOrder=Asc&limit=100"))
-    end)
     
-    if success and result and result.data then
-        for _, s in pairs(result.data) do
-            if s.playing < s.maxPlayers - 1 and s.id ~= game.JobId then 
-                table.insert(AllIDs, s.id) 
+    task.spawn(function()
+        while task.wait(5) do -- حلقة تكرار: يحاول كل 5 ثوانٍ إذا فشل الانتقال
+            local AllIDs = {}
+            local success, result = pcall(function()
+                return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..PlaceID.."/servers/Public?sortOrder=Asc&limit=100"))
+            end)
+            
+            if success and result and result.data then
+                for _, s in pairs(result.data) do
+                    if s.playing < s.maxPlayers - 1 and s.id ~= game.JobId then 
+                        table.insert(AllIDs, s.id) 
+                    end
+                end
+            end
+            
+            if #AllIDs > 0 then
+                local RandomServer = AllIDs[math.random(1, #AllIDs)]
+                pcall(function()
+                    TeleportService:TeleportToPlaceInstance(PlaceID, RandomServer, LocalPlayer)
+                end)
+            else
+                pcall(function() TeleportService:Teleport(PlaceID, LocalPlayer) end)
             end
         end
-    end
-    
-    if #AllIDs > 0 then
-        TeleportService:TeleportToPlaceInstance(PlaceID, AllIDs[math.random(1, #AllIDs)], LocalPlayer)
-    else
-        TeleportService:Teleport(PlaceID, LocalPlayer)
-    end
+    end)
 end
 
 -- ========== OPTIMIZED SCANNER ==========
@@ -302,6 +306,7 @@ local function AutoFarmLogic()
         return 
     end
 
+    -- شرط الدخول للسيرفر الجديد: إذا لم توجد فواكه في السيرفر
     if TotalFruitsFound == 0 then
         if Settings.AutoHopEnabled and (tick() - ScriptStartTime > 12) then
             ServerHop()
@@ -358,7 +363,7 @@ local function CreateUI()
     Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
     
     local title = Instance.new("TextLabel")
-    title.Size, title.BackgroundColor3, title.Font, title.TextColor3, title.TextScaled, title.Text, title.Parent = UDim2.new(1, 0, 0, 45), Color3.fromRGB(255,80,80), Enum.Font.GothamBlack, Color3.new(1,1,1), true, "🍈 FINAL ESP v16.4", main
+    title.Size, title.BackgroundColor3, title.Font, title.TextColor3, title.TextScaled, title.Text, title.Parent = UDim2.new(1, 0, 0, 45), Color3.fromRGB(255,80,80), Enum.Font.GothamBlack, Color3.new(1,1,1), true, "🍈 FINAL ESP v16.5", main
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
     
     local dragging, startPos, frameStart = false, nil, nil
@@ -452,4 +457,4 @@ end)
 
 CreateUI()
 task.defer(ScanFullMap)
-print("🍈 FINAL ESP v16.4 LOADED - AUTO MARINES & AUTO FARM FULLY AUTOMATED")
+print("🍈 FINAL ESP v16.5 LOADED - ROBUST SERVER HOP ENABLED")
