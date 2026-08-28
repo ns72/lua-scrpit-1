@@ -1,5 +1,5 @@
 --[[
-    BLOX FRUITS - ULTIMATE ESP v16.3 (AUTO MARINES + AUTO EXECUTE FIX)
+    BLOX FRUITS - ULTIMATE ESP v16.4 (ALWAYS MARINES + AUTO FARM & HOP ON BY DEFAULT)
 ]]
 
 local Players = game:GetService("Players")
@@ -11,11 +11,11 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- ========== CONFIG ==========
+-- ========== CONFIG (ALL ENABLED BY DEFAULT) ==========
 local Settings = {
     ESPEnabled = true,
-    AutoFarmEnabled = false,
-    AutoHopEnabled = false, 
+    AutoFarmEnabled = true, -- مفعل تلقائياً دائماً
+    AutoHopEnabled = true,  -- مفعل تلقائياً دائماً
     FlySpeed = 320,
     SkyAltitude = 400,
     MaxESPDistance = 999999,
@@ -23,24 +23,38 @@ local Settings = {
     ScanInterval = 4,
     ESPColor = Color3.fromRGB(255, 80, 80),
     ESPTransparency = 0.3,
-    -- تم إزالة علامة التعليق (--) لكي يعمل كود النقل التلقائي بنجاح
     AutoExecuteScript = [[
         loadstring(game:HttpGet("https://raw.githubusercontent.com/ns72/lua-scrpit-1/refs/heads/main/luascrpit1"))()
     ]]
 }
 
--- ========== AUTO JOIN MARINES ==========
+-- ========== ROBUST AUTO JOIN MARINES ==========
 local function AutoJoinMarines()
-    pcall(function()
-        local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
-        if CommF then
-            -- اختيار فريق المارينز (Marines) تلقائياً عند تشغيل السكربت
-            CommF:InvokeServer("SetTeam", "Marines")
+    task.spawn(function()
+        -- الانتظار حتى اكتمال تحميل اللعبة والواجهة
+        repeat task.wait(0.5) until game:IsLoaded() and LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
+        
+        local remotes = ReplicatedStorage:WaitForChild("Remotes", 15)
+        local commF = remotes and remotes:WaitForChild("CommF_", 15)
+        
+        if commF then
+            -- محاولة اختيار الفريق لعدة مرات لضمان الاستجابة
+            for i = 1, 10 do
+                pcall(function()
+                    commF:InvokeServer("SetTeam", "Marines")
+                end)
+                
+                -- التحقق مما إذا تم التبديل للفريق بنجاح
+                if LocalPlayer.Team and (LocalPlayer.Team.Name == "Marines" or LocalPlayer.Team.Name == "Marine") then
+                    break
+                end
+                task.wait(1)
+            end
         end
     end)
 end
 
--- تشغيل اختيار الفريق فوراً
+-- تشغيل فحص واختيار الفريق فوراً
 AutoJoinMarines()
 
 -- ========== FRUIT DATABASE ==========
@@ -289,7 +303,7 @@ local function AutoFarmLogic()
     end
 
     if TotalFruitsFound == 0 then
-        if Settings.AutoHopEnabled and (tick() - ScriptStartTime > 15) then
+        if Settings.AutoHopEnabled and (tick() - ScriptStartTime > 12) then
             ServerHop()
         end
         IsFarmingFruit = false
@@ -344,7 +358,7 @@ local function CreateUI()
     Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
     
     local title = Instance.new("TextLabel")
-    title.Size, title.BackgroundColor3, title.Font, title.TextColor3, title.TextScaled, title.Text, title.Parent = UDim2.new(1, 0, 0, 45), Color3.fromRGB(255,80,80), Enum.Font.GothamBlack, Color3.new(1,1,1), true, "🍈 FINAL ESP v16.3", main
+    title.Size, title.BackgroundColor3, title.Font, title.TextColor3, title.TextScaled, title.Text, title.Parent = UDim2.new(1, 0, 0, 45), Color3.fromRGB(255,80,80), Enum.Font.GothamBlack, Color3.new(1,1,1), true, "🍈 FINAL ESP v16.4", main
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
     
     local dragging, startPos, frameStart = false, nil, nil
@@ -370,10 +384,10 @@ local function CreateUI()
     espBtn.Size, espBtn.Position, espBtn.BackgroundColor3, espBtn.TextColor3, espBtn.Font, espBtn.TextScaled, espBtn.Text = UDim2.new(0, 90, 0, 32), UDim2.new(0, 10, 0, 80), Color3.fromRGB(60,60,65), Color3.new(1,1,1), Enum.Font.GothamBold, true, "ESP: ON"
     
     local farmBtn = Instance.new("TextButton", main)
-    farmBtn.Size, farmBtn.Position, farmBtn.BackgroundColor3, farmBtn.TextColor3, farmBtn.Font, farmBtn.TextScaled, farmBtn.Text = UDim2.new(0, 200, 0, 32), UDim2.new(0, 110, 0, 80), Color3.fromRGB(60,60,65), Color3.new(1,1,1), Enum.Font.GothamBold, true, "Auto Farm: OFF"
+    farmBtn.Size, farmBtn.Position, farmBtn.BackgroundColor3, farmBtn.TextColor3, farmBtn.Font, farmBtn.TextScaled, farmBtn.Text = UDim2.new(0, 200, 0, 32), UDim2.new(0, 110, 0, 80), Color3.fromRGB(40,120,40), Color3.new(1,1,1), Enum.Font.GothamBold, true, "Auto Farm: ON"
 
     local hopBtn = Instance.new("TextButton", main)
-    hopBtn.Size, hopBtn.Position, hopBtn.BackgroundColor3, hopBtn.TextColor3, hopBtn.Font, hopBtn.TextScaled, hopBtn.Text = UDim2.new(0, 300, 0, 32), UDim2.new(0, 10, 0, 117), Color3.fromRGB(60,60,65), Color3.new(1,1,1), Enum.Font.GothamBold, true, "Auto Hop (If Empty): OFF"
+    hopBtn.Size, hopBtn.Position, hopBtn.BackgroundColor3, hopBtn.TextColor3, hopBtn.Font, hopBtn.TextScaled, hopBtn.Text = UDim2.new(0, 300, 0, 32), UDim2.new(0, 10, 0, 117), Color3.fromRGB(40,120,40), Color3.new(1,1,1), Enum.Font.GothamBold, true, "Auto Hop (If Empty): ON"
 
     local list = Instance.new("ScrollingFrame", main)
     list.Size, list.Position, list.BackgroundColor3, list.BorderSizePixel, list.CanvasSize, list.ScrollBarThickness = UDim2.new(1, 0, 1, -155), UDim2.new(0, 0, 0, 155), Color3.fromRGB(35,35,40), 0, UDim2.new(0, 0, 0, 43 * 32), 5
@@ -438,4 +452,4 @@ end)
 
 CreateUI()
 task.defer(ScanFullMap)
-print("🍈 FINAL ESP v16.3 LOADED - MARINES AUTO-JOIN & RESTART FIXED")
+print("🍈 FINAL ESP v16.4 LOADED - AUTO MARINES & AUTO FARM FULLY AUTOMATED")
