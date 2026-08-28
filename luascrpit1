@@ -1,12 +1,12 @@
 -- ========== PREVENT DOUBLE EXECUTION CRASH ==========
-if getgenv()._FruitESPLoaded_V16_5 then 
+if getgenv()._UltimateESPLoaded_V16_5 then 
     warn("Script already running! Restart game to inject safely.") 
     return 
 end
-getgenv()._FruitESPLoaded_V16_5 = true
+getgenv()._UltimateESPLoaded_V16_5 = true
 
 --[[
-    BLOX FRUITS - ULTIMATE ESP v16.5 (FAST MODE + ANTI-CRASH FIX)
+    BLOX FRUITS - ULTIMATE ESP v16.5 (FAST MODE + ROBUST AUTO HOP + ANTI-CRASH)
 ]]
 
 local Players = game:GetService("Players")
@@ -27,10 +27,11 @@ local Settings = {
     FlySpeed = 320,
     SkyAltitude = 400,
     MaxESPDistance = 999999,
+    MaxValidDistance = 999999, 
     ScanInterval = 4,
     ESPColor = Color3.fromRGB(255, 80, 80),
     ESPTransparency = 0.3,
-    FastModeEnabled = true, -- تفعيل الفاست مود افتراضياً لمنع الكراش
+    FastModeEnabled = true, -- لتخفيف الرام ومنع الكراش
     AutoExecuteScript = [[
         loadstring(game:HttpGet("https://raw.githubusercontent.com/ns72/lua-scrpit-1/refs/heads/main/luascrpit2"))()
     ]]
@@ -66,18 +67,25 @@ EnableFastMode()
 local function AutoJoinMarines()
     task.spawn(function()
         repeat task.wait(0.5) until game:IsLoaded() and LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
+        
         local remotes = ReplicatedStorage:WaitForChild("Remotes", 15)
         local commF = remotes and remotes:WaitForChild("CommF_", 15)
         
         if commF then
             for i = 1, 10 do
-                pcall(function() commF:InvokeServer("SetTeam", "Marines") end)
-                if LocalPlayer.Team and (LocalPlayer.Team.Name == "Marines" or LocalPlayer.Team.Name == "Marine") then break end
+                pcall(function()
+                    commF:InvokeServer("SetTeam", "Marines")
+                end)
+                
+                if LocalPlayer.Team and (LocalPlayer.Team.Name == "Marines" or LocalPlayer.Team.Name == "Marine") then
+                    break
+                end
                 task.wait(1)
             end
         end
     end)
 end
+
 AutoJoinMarines()
 
 -- ========== FRUIT DATABASE ==========
@@ -107,7 +115,6 @@ local StatsLabel = nil
 local ScriptStartTime = tick()
 local IsFarmingFruit = false
 local IsHopping = false
-local FruitlessStartTime = 0
 
 local NoclipConn = nil
 local ZeroGravityConn = nil
@@ -127,7 +134,7 @@ local function MatchFruit(name)
     return nil, nil
 end
 
--- ========== PHYSICS & BYPASS ==========
+-- ========== PHYSICS & ANTI-CHEAT BYPASS ==========
 local function EnablePhysicsBypass()
     if not NoclipConn then
         NoclipConn = RunService.Stepped:Connect(function()
@@ -156,15 +163,18 @@ local function DisablePhysicsBypass()
     if ZeroGravityConn then ZeroGravityConn:Disconnect() ZeroGravityConn = nil end
 end
 
--- ========== SAFE SERVER HOP ==========
+-- ========== ADVANCED SERVER HOP (RETRY LOOP) ==========
 local function ServerHop()
     if IsHopping then return end
     IsHopping = true
     
     local queueFunc = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport) or getgenv().queue_on_teleport
-    if queueFunc then pcall(function() queueFunc(Settings.AutoExecuteScript) end) end
+    if queueFunc then
+        pcall(function() queueFunc(Settings.AutoExecuteScript) end)
+    end
 
     local PlaceID = game.PlaceId
+    
     task.spawn(function()
         while task.wait(5) do 
             local AllIDs = {}
@@ -181,7 +191,10 @@ local function ServerHop()
             end
             
             if #AllIDs > 0 then
-                pcall(function() TeleportService:TeleportToPlaceInstance(PlaceID, AllIDs[math.random(1, #AllIDs)], LocalPlayer) end)
+                local RandomServer = AllIDs[math.random(1, #AllIDs)]
+                pcall(function()
+                    TeleportService:TeleportToPlaceInstance(PlaceID, RandomServer, LocalPlayer)
+                end)
             else
                 pcall(function() TeleportService:Teleport(PlaceID, LocalPlayer) end)
             end
@@ -189,7 +202,7 @@ local function ServerHop()
     end)
 end
 
--- ========== OPTIMIZED MEMORY-SAFE SCANNER ==========
+-- ========== OPTIMIZED SCANNER ==========
 local function ScanFullMap()
     if ScanInProgress then return end
     ScanInProgress = true
@@ -197,8 +210,11 @@ local function ScanFullMap()
     task.spawn(function()
         local newFruitList = {}
         local seen = {}
+        local processed = 0
+        local descendants = Workspace:GetChildren()
         
-        for _, desc in ipairs(Workspace:GetChildren()) do
+        for i = 1, #descendants do
+            local desc = descendants[i]
             if desc and (desc:IsA("Tool") or desc:IsA("Model")) then
                 local fruitName, rank = MatchFruit(desc.Name)
                 if fruitName and rank and not seen[fruitName] then
@@ -210,11 +226,14 @@ local function ScanFullMap()
                     end
                 end
             end
+            
+            processed = processed + 1
+            if processed % 20 == 0 then RunService.Heartbeat:Wait() end
         end
         
         table.sort(newFruitList, function(a,b) return a.Rank > b.Rank end)
         
-        -- تنظيف الذاكرة (Memory Cleanup) للعناصر المحذوفة
+        -- تنظيف ESP للفواكه التي اختفت لمنع الكراش
         for fruitInstance, esp in pairs(ESPObjects) do
             if not fruitInstance or not fruitInstance.Parent or not esp.FruitData.Root or not esp.FruitData.Root.Parent then
                 if esp.Billboard then esp.Billboard:Destroy() end
@@ -249,8 +268,7 @@ local function ScanFullMap()
         TotalFruitsFound = #newFruitList
         ScanInProgress = false
         
-        -- مسح الجداول المؤقتة لتحرير الرام
-        table.clear(seen)
+        table.clear(seen) -- مسح الجدول لتحرير الرام
     end)
 end
 
@@ -258,14 +276,12 @@ local function UpdateAllDistances()
     for fruitInstance, esp in pairs(ESPObjects) do
         if fruitInstance and esp.FruitData and esp.FruitData.Root and esp.FruitData.Root.Parent then
             local dist = (esp.FruitData.Root.Position - PlayerPos).Magnitude
-            if esp.Label then
-                esp.Label.Text = string.format("🍈 %s #%d | %dm", esp.FruitData.Name, esp.FruitData.Rank, math.floor(dist))
-            end
+            esp.Label.Text = string.format("🍈 %s #%d | %dm", esp.FruitData.Name, esp.FruitData.Rank, math.floor(dist))
         end
     end
 end
 
--- ========== FLY ENGINE ==========
+-- ========== DELTA-TIME FLY ENGINE ==========
 local function SmoothDeltaFly(targetWorldPos)
     local char = LocalPlayer.Character
     if not char then return end
@@ -278,11 +294,16 @@ local function SmoothDeltaFly(targetWorldPos)
 
     local startPos = hrp.Position
     local skyY = math.max(startPos.Y, targetWorldPos.Y) + Settings.SkyAltitude
-    local waypoints = { Vector3.new(startPos.X, skyY, startPos.Z), Vector3.new(targetWorldPos.X, skyY, targetWorldPos.Z), targetWorldPos + Vector3.new(0, 2, 0) }
+    
+    local waypoints = {
+        Vector3.new(startPos.X, skyY, startPos.Z),
+        Vector3.new(targetWorldPos.X, skyY, targetWorldPos.Z),
+        targetWorldPos + Vector3.new(0, 2, 0)
+    }
 
     for _, point in ipairs(waypoints) do
         while hrp and hrp.Parent and (hrp.Position - point).Magnitude > 5 do
-            if not Settings.AutoFarmEnabled then break end
+            if not Settings.AutoFarmEnabled and IsFarmingFruit then break end
             
             local dt = RunService.Heartbeat:Wait()
             if not hrp or not hrp.Parent then break end
@@ -302,7 +323,7 @@ local function SmoothDeltaFly(targetWorldPos)
     DisablePhysicsBypass()
 end
 
--- ========== AUTO FARM LOGIC ==========
+-- ========== AUTO FARM & SLOT 1 STORE LOGIC ==========
 local function StoreAllFruitsInBag()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
     if not CommF then return end
@@ -318,17 +339,17 @@ local function StoreAllFruitsInBag()
 end
 
 local function AutoFarmLogic()
-    if not Settings.AutoFarmEnabled then return end
+    if not Settings.AutoFarmEnabled then 
+        IsFarmingFruit = false 
+        return 
+    end
 
     if TotalFruitsFound == 0 then
-        if FruitlessStartTime == 0 then
-            FruitlessStartTime = tick()
-        elseif (tick() - FruitlessStartTime) >= 15 then
-            if Settings.AutoHopEnabled then ServerHop() end
+        if Settings.AutoHopEnabled and (tick() - ScriptStartTime > 12) then
+            ServerHop()
         end
+        IsFarmingFruit = false
         return
-    else
-        FruitlessStartTime = 0
     end
 
     if IsFarmingFruit then return end
@@ -382,7 +403,7 @@ local function CreateUI()
     Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
     
     local title = Instance.new("TextLabel")
-    title.Size, title.BackgroundColor3, title.Font, title.TextColor3, title.TextScaled, title.Text, title.Parent = UDim2.new(1, 0, 0, 45), Color3.fromRGB(255,80,80), Enum.Font.GothamBlack, Color3.new(1,1,1), true, "🚀 ANTI-CRASH ESP v16.5", main
+    title.Size, title.BackgroundColor3, title.Font, title.TextColor3, title.TextScaled, title.Text, title.Parent = UDim2.new(1, 0, 0, 45), Color3.fromRGB(255,80,80), Enum.Font.GothamBlack, Color3.new(1,1,1), true, "🍈 FINAL ESP v16.5", main
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
     
     local dragging, startPos, frameStart = false, nil, nil
@@ -397,19 +418,21 @@ local function CreateUI()
             main.Position = UDim2.new(0, frameStart.X + delta.X, 0, frameStart.Y + delta.Y) 
         end 
     end)
-    UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end end)
+    UserInputService.InputEnded:Connect(function(i) 
+        if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end 
+    end)
     
     StatsLabel = Instance.new("TextLabel")
     StatsLabel.Size, StatsLabel.Position, StatsLabel.BackgroundColor3, StatsLabel.Font, StatsLabel.TextColor3, StatsLabel.TextScaled, StatsLabel.Text, StatsLabel.Parent = UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, 50), Color3.fromRGB(40,40,45), Enum.Font.GothamBold, Color3.new(1,1,1), true, "🔍 Scans: 0 | Valid Fruits: 0", main
     
     local espBtn = Instance.new("TextButton", main)
-    espBtn.Size, espBtn.Position, espBtn.BackgroundColor3, espBtn.TextColor3, espBtn.Font, espBtn.TextScaled, espBtn.Text = UDim2.new(0, 90, 0, 32), UDim2.new(0, 10, 0, 80), Color3.fromRGB(40,120,40), Color3.new(1,1,1), Enum.Font.GothamBold, true, "ESP: ON"
+    espBtn.Size, espBtn.Position, espBtn.BackgroundColor3, espBtn.TextColor3, espBtn.Font, espBtn.TextScaled, espBtn.Text = UDim2.new(0, 90, 0, 32), UDim2.new(0, 10, 0, 80), Color3.fromRGB(60,60,65), Color3.new(1,1,1), Enum.Font.GothamBold, true, "ESP: ON"
     
     local farmBtn = Instance.new("TextButton", main)
     farmBtn.Size, farmBtn.Position, farmBtn.BackgroundColor3, farmBtn.TextColor3, farmBtn.Font, farmBtn.TextScaled, farmBtn.Text = UDim2.new(0, 200, 0, 32), UDim2.new(0, 110, 0, 80), Color3.fromRGB(40,120,40), Color3.new(1,1,1), Enum.Font.GothamBold, true, "Auto Farm: ON"
 
     local hopBtn = Instance.new("TextButton", main)
-    hopBtn.Size, hopBtn.Position, hopBtn.BackgroundColor3, hopBtn.TextColor3, hopBtn.Font, hopBtn.TextScaled, hopBtn.Text = UDim2.new(0, 300, 0, 32), UDim2.new(0, 10, 0, 117), Color3.fromRGB(40,120,40), Color3.new(1,1,1), Enum.Font.GothamBold, true, "Auto Hop: ON"
+    hopBtn.Size, hopBtn.Position, hopBtn.BackgroundColor3, hopBtn.TextColor3, hopBtn.Font, hopBtn.TextScaled, hopBtn.Text = UDim2.new(0, 300, 0, 32), UDim2.new(0, 10, 0, 117), Color3.fromRGB(40,120,40), Color3.new(1,1,1), Enum.Font.GothamBold, true, "Auto Hop (If Empty): ON"
 
     local list = Instance.new("ScrollingFrame", main)
     list.Size, list.Position, list.BackgroundColor3, list.BorderSizePixel, list.CanvasSize, list.ScrollBarThickness = UDim2.new(1, 0, 1, -155), UDim2.new(0, 0, 0, 155), Color3.fromRGB(35,35,40), 0, UDim2.new(0, 0, 0, 43 * 32), 5
@@ -435,8 +458,8 @@ local function CreateUI()
     
     espBtn.MouseButton1Click:Connect(function()
         Settings.ESPEnabled = not Settings.ESPEnabled
-        espBtn.Text, espBtn.BackgroundColor3 = (Settings.ESPEnabled and "ESP: ON" or "ESP: OFF"), (Settings.ESPEnabled and Color3.fromRGB(40,120,40) or Color3.fromRGB(120,40,40))
-        for f, esp in pairs(ESPObjects) do if esp.Billboard then esp.Billboard.Enabled = Settings.ESPEnabled end end
+        espBtn.Text, espBtn.BackgroundColor3 = (Settings.ESPEnabled and "ESP: ON" or "ESP: OFF"), (Settings.ESPEnabled and Color3.fromRGB(60,60,65) or Color3.fromRGB(120,40,40))
+        if not Settings.ESPEnabled then for f, esp in pairs(ESPObjects) do if esp.Billboard then esp.Billboard:Destroy() end end ESPObjects = {} end
     end)
     
     farmBtn.MouseButton1Click:Connect(function()
@@ -447,7 +470,7 @@ local function CreateUI()
 
     hopBtn.MouseButton1Click:Connect(function()
         Settings.AutoHopEnabled = not Settings.AutoHopEnabled
-        hopBtn.Text, hopBtn.BackgroundColor3 = (Settings.AutoHopEnabled and "Auto Hop: ON" or "Auto Hop: OFF"), (Settings.AutoHopEnabled and Color3.fromRGB(40,120,40) or Color3.fromRGB(60,60,65))
+        hopBtn.Text, hopBtn.BackgroundColor3 = (Settings.AutoHopEnabled and "Auto Hop (If Empty): ON" or "Auto Hop (If Empty): OFF"), (Settings.AutoHopEnabled and Color3.fromRGB(40,120,40) or Color3.fromRGB(60,60,65))
     end)
 end
 
@@ -474,4 +497,4 @@ end)
 
 CreateUI()
 task.defer(ScanFullMap)
-print("🍈 ANTI-CRASH ESP v16.5 LOADED (FAST MODE ACTIVE)")
+print("🍈 FINAL ESP v16.5 LOADED - ROBUST SERVER HOP + FAST MODE ENABLED")
