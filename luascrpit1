@@ -24,7 +24,7 @@ local Settings = {
     ESPColor = Color3.fromRGB(255, 80, 80),
     ESPTransparency = 0.3,
     AutoExecuteScript = [[
-        -- loadstring(game:HttpGet("ضع_رابط_سكربتك_هنا"))()
+        -- loadstring(game:HttpGet("https://raw.githubusercontent.com/ns72/lua-scrpit-1/refs/heads/main/luascrpit2"))()
     ]]
 }
 
