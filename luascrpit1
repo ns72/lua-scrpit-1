@@ -1,12 +1,13 @@
--- ========== PREVENT DOUBLE EXECUTION CRASH ==========
-if getgenv()._UltimateESPLoaded_V16_6 then 
-    warn("Script already running! Restart game to inject safely.") 
+-- ========== PREVENT DOUBLE EXECUTION ==========
+if getgenv()._UltimateESPLoaded_FINAL then 
+    warn("Script is already running!") 
     return 
 end
-getgenv()._UltimateESPLoaded_V16_6 = true
+getgenv()._UltimateESPLoaded_FINAL = true
 
 --[[
-    BLOX FRUITS - ULTIMATE ESP v16.6 (FAST MODE + ANTI-BOUNCE CRASH + ROBUST AUTO HOP)
+    BLOX FRUITS - ULTIMATE AUTO FARM & ESP (FINAL)
+    FEATURES: MEDIUM SERVER HOP, NATIVE FAST MODE, ANTI-FLING/NOCLIP, COORDINATE TRACKING
 ]]
 
 local Players = game:GetService("Players")
@@ -18,125 +19,87 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
+local CoreGui = game:GetService("CoreGui")
 
--- ========== CONFIG ==========
+-- ========== CONFIGURATION ==========
 local Settings = {
     ESPEnabled = true,
     AutoFarmEnabled = true, 
     AutoHopEnabled = true,  
-    FlySpeed = 320,
-    SkyAltitude = 400,
-    MaxESPDistance = 999999,
-    MaxValidDistance = 999999, 
-    ScanInterval = 4,
-    ESPColor = Color3.fromRGB(255, 80, 80),
-    ESPTransparency = 0.3,
-    FastModeEnabled = true, -- تفعيل وضع التخفيف
+    FlySpeed = 350, -- سرعة محسنة
+    SkyAltitude = 500, -- ارتفاع آمن
+    ScanInterval = 3,
+    ESPColor = Color3.fromRGB(0, 255, 128),
     AutoExecuteScript = [[
         loadstring(game:HttpGet("https://raw.githubusercontent.com/ns72/lua-scrpit-1/refs/heads/main/luascrpit2"))()
     ]]
 }
 
--- ========== FAST MODE (ANTI-CRASH & FPS BOOST) ==========
-local function EnableFastMode()
-    if not Settings.FastModeEnabled then return end
-    
-    pcall(function()
-        Lighting.GlobalShadows = false
-        Lighting.FogEnd = 9e9
-        Lighting.ShadowSoftness = 0
-        
-        if sethiddenproperty then
-            pcall(function() sethiddenproperty(Lighting, "Technology", 2) end)
-        end
-        
-        for _, v in pairs(Workspace:GetDescendants()) do
-            if v:IsA("BasePart") and not v.Parent:FindFirstChild("Humanoid") then
-                v.Material = Enum.Material.Plastic
-                v.Reflectance = 0
-            elseif v:IsA("Decal") or v:IsA("Texture") then
-                v.Transparency = 1
-            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
-                v.Lifetime = NumberRange.new(0)
+-- ========== FAST MODE (NO MATERIALS) ==========
+local function AutoEnableFastMode()
+    task.spawn(function()
+        pcall(function()
+            Lighting.GlobalShadows = false
+            Lighting.FogEnd = 9e9
+            Lighting.ShadowSoftness = 0
+            if sethiddenproperty then pcall(function() sethiddenproperty(Lighting, "Technology", 2) end) end
+            
+            for _, v in pairs(Workspace:GetDescendants()) do
+                if v:IsA("BasePart") and not v.Parent:FindFirstChild("Humanoid") then
+                    v.Material = Enum.Material.Plastic
+                    v.Reflectance = 0
+                elseif v:IsA("Decal") or v:IsA("Texture") then
+                    v.Transparency = 1
+                end
             end
-        end
+        end)
     end)
-    print("🚀 Fast Mode Enabled: Memory Optimized!")
 end
-EnableFastMode()
+AutoEnableFastMode()
 
--- ========== ROBUST AUTO JOIN MARINES ==========
+-- ========== AUTO JOIN MARINES ==========
 local function AutoJoinMarines()
     task.spawn(function()
-        repeat task.wait(0.5) until game:IsLoaded() and LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
-        
-        local remotes = ReplicatedStorage:WaitForChild("Remotes", 15)
-        local commF = remotes and remotes:WaitForChild("CommF_", 15)
-        
+        repeat task.wait(0.5) until game:IsLoaded() and LocalPlayer.Character
+        local commF = ReplicatedStorage:WaitForChild("Remotes", 10) and ReplicatedStorage.Remotes:WaitForChild("CommF_", 10)
         if commF then
-            for i = 1, 10 do
-                pcall(function()
-                    commF:InvokeServer("SetTeam", "Marines")
-                end)
-                
-                if LocalPlayer.Team and (LocalPlayer.Team.Name == "Marines" or LocalPlayer.Team.Name == "Marine") then
-                    break
-                end
+            for i = 1, 5 do
+                pcall(function() commF:InvokeServer("SetTeam", "Marines") end)
+                if LocalPlayer.Team and LocalPlayer.Team.Name:match("Marine") then break end
                 task.wait(1)
             end
         end
     end)
 end
-
 AutoJoinMarines()
 
 -- ========== FRUIT DATABASE ==========
 local FruitRanks = {
-    ["Rocket"]=1, ["Spin"]=2, ["Fruit"]=44, ["Fruits"]=0, ["Spring"]=4, ["Bomb"]=5,
-    ["Smoke"]=6, ["Spike"]=7, ["Flame"]=8, ["Ice"]=9, ["Sand"]=10,
-    ["Dark"]=11, ["Eagle"]=12, ["Diamond"]=13, ["Light"]=14,
-    ["Rubber"]=15, ["Ghost"]=16, ["Magma"]=17, ["Quake"]=18,
-    ["Buddha"]=19, ["Love"]=20, ["Creation"]=21, ["Spider"]=22,
-    ["Sound"]=23, ["Phoenix"]=24, ["Portal"]=25, ["Lightning"]=26,
-    ["Pain"]=27, ["Blizzard"]=28, ["Gravity"]=29, ["Shadow"]=30,
-    ["Venom"]=31, ["Control"]=32, ["Spirit"]=33, ["Gas"]=34,
-    ["Yeti"]=35, ["Mammoth"]=36, ["T-Rex"]=37, ["Dough"]=38,
-    ["Leopard"]=39, ["Kitsune"]=40, ["Tiger"]=41,
-    ["West Dragon"]=42, ["East Dragon"]=43
+    ["Rocket"]=1, ["Spin"]=2, ["Spring"]=4, ["Bomb"]=5, ["Smoke"]=6, ["Spike"]=7, 
+    ["Flame"]=8, ["Ice"]=9, ["Sand"]=10, ["Dark"]=11, ["Diamond"]=13, ["Light"]=14, 
+    ["Rubber"]=15, ["Ghost"]=16, ["Magma"]=17, ["Quake"]=18, ["Buddha"]=19, ["Love"]=20, 
+    ["Spider"]=22, ["Sound"]=23, ["Phoenix"]=24, ["Portal"]=25, ["Lightning"]=26, 
+    ["Pain"]=27, ["Blizzard"]=28, ["Gravity"]=29, ["Shadow"]=30, ["Venom"]=31, 
+    ["Control"]=32, ["Spirit"]=33, ["Mammoth"]=36, ["T-Rex"]=37, ["Dough"]=38, 
+    ["Leopard"]=39, ["Kitsune"]=40, ["Dragon"]=42
 }
 
--- ========== STORAGE & VARIABLES ==========
 local CachedFruits = {}
 local ESPObjects = {}
-local PlayerPos = Vector3.new(0,0,0)
-local LastScan = 0
-local ScanInProgress = false
-local ScanCount = 0
-local TotalFruitsFound = 0
-local StatsLabel = nil
-local ScriptStartTime = tick()
-local IsFarmingFruit = false
-local IsHopping = false
-
-local NoclipConn = nil
-local ZeroGravityConn = nil
-
--- ========== HELPERS ==========
-local function GetRootPart(item)
-    if not item or not item.Parent then return nil end
-    return item:FindFirstChild("Handle") or item:FindFirstChild("MeshPart") or item:FindFirstChild("Base") or item:FindFirstChildOfClass("BasePart")
-end
+local LastScan, ScanCount, TotalFruitsFound = 0, 0, 0
+local IsFarmingFruit, IsHopping = false, false
+local NoclipConn, ZeroGravityConn = nil, nil
 
 local function MatchFruit(name)
     if not name then return nil, nil end
-    local clean = name:gsub("%s+",""):gsub("%-",""):gsub("%_",""):lower()
+    local clean = name:gsub("[%s%-_]",""):lower()
     for fruit, rank in pairs(FruitRanks) do
         if clean:find(fruit:lower()) then return fruit, rank end
     end
     return nil, nil
 end
 
--- ========== PHYSICS & ANTI-CHEAT BYPASS ==========
+-- ========== ANTI-FLING & COLLISION DISABLER ==========
 local function EnablePhysicsBypass()
     if not NoclipConn then
         NoclipConn = RunService.Stepped:Connect(function()
@@ -153,8 +116,8 @@ local function EnablePhysicsBypass()
             local char = LocalPlayer.Character
             if char and char:FindFirstChild("HumanoidRootPart") then
                 local hrp = char.HumanoidRootPart
-                hrp.AssemblyLinearVelocity = Vector3.new(0,0,0)
-                hrp.AssemblyAngularVelocity = Vector3.new(0,0,0)
+                hrp.AssemblyLinearVelocity = Vector3.zero
+                hrp.AssemblyAngularVelocity = Vector3.zero
             end
         end)
     end
@@ -165,28 +128,24 @@ local function DisablePhysicsBypass()
     if ZeroGravityConn then ZeroGravityConn:Disconnect() ZeroGravityConn = nil end
 end
 
--- ========== ADVANCED SERVER HOP (RETRY LOOP) ==========
+-- ========== MEDIUM SERVER HOP (5-9 PLAYERS) ==========
 local function ServerHop()
     if IsHopping then return end
     IsHopping = true
     
     local queueFunc = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport) or getgenv().queue_on_teleport
-    if queueFunc then
-        pcall(function() queueFunc(Settings.AutoExecuteScript) end)
-    end
+    if queueFunc then pcall(function() queueFunc(Settings.AutoExecuteScript) end) end
 
-    local PlaceID = game.PlaceId
-    
     task.spawn(function()
-        while task.wait(5) do 
+        while task.wait(2) do 
             local AllIDs = {}
             local success, result = pcall(function()
-                return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..PlaceID.."/servers/Public?sortOrder=Asc&limit=100"))
+                return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
             end)
             
             if success and result and result.data then
                 for _, s in pairs(result.data) do
-                    if s.playing < s.maxPlayers - 1 and s.id ~= game.JobId then 
+                    if s.playing >= 5 and s.playing <= 9 and s.id ~= game.JobId then 
                         table.insert(AllIDs, s.id) 
                     end
                 end
@@ -194,163 +153,78 @@ local function ServerHop()
             
             if #AllIDs > 0 then
                 local RandomServer = AllIDs[math.random(1, #AllIDs)]
-                pcall(function()
-                    TeleportService:TeleportToPlaceInstance(PlaceID, RandomServer, LocalPlayer)
-                end)
-            else
-                pcall(function() TeleportService:Teleport(PlaceID, LocalPlayer) end)
+                pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, RandomServer, LocalPlayer) end)
+                task.wait(5)
             end
         end
     end)
 end
 
--- ========== OPTIMIZED SCANNER ==========
+-- ========== COORDINATE TRACKING & SCANNER ==========
 local function ScanFullMap()
-    if ScanInProgress then return end
-    ScanInProgress = true
-    
     task.spawn(function()
         local newFruitList = {}
         local seen = {}
-        local processed = 0
-        local descendants = Workspace:GetChildren()
         
-        for i = 1, #descendants do
-            local desc = descendants[i]
-            if desc and (desc:IsA("Tool") or desc:IsA("Model")) then
-                local fruitName, rank = MatchFruit(desc.Name)
-                if fruitName and rank and not seen[fruitName] then
-                    local root = GetRootPart(desc)
+        for _, desc in ipairs(Workspace:GetChildren()) do
+            if desc:IsA("Tool") or desc:IsA("Model") then
+                local fName, fRank = MatchFruit(desc.Name)
+                if fName and fRank and not seen[fName] then
+                    local root = desc:FindFirstChild("Handle") or desc:FindFirstChild("MeshPart")
                     if root and root.Parent and root.Position.Y > -500 then
-                        local dist = (root.Position - PlayerPos).Magnitude
-                        seen[fruitName] = true
-                        table.insert(newFruitList, {Fruit = desc, Root = root, Name = fruitName, Rank = rank, Dist = dist})
+                        seen[fName] = true
+                        table.insert(newFruitList, {Fruit = desc, Root = root, Name = fName, Rank = fRank})
                     end
                 end
             end
-            
-            processed = processed + 1
-            if processed % 20 == 0 then RunService.Heartbeat:Wait() end
         end
         
         table.sort(newFruitList, function(a,b) return a.Rank > b.Rank end)
-        
-        for fruitInstance, esp in pairs(ESPObjects) do
-            if not fruitInstance or not fruitInstance.Parent or not esp.FruitData.Root or not esp.FruitData.Root.Parent then
-                if esp.Billboard then esp.Billboard:Destroy() end
-                ESPObjects[fruitInstance] = nil
-            end
-        end
-        
-        for _, fruitData in ipairs(newFruitList) do
-            if not ESPObjects[fruitData.Fruit] then
-                local billboard = Instance.new("BillboardGui")
-                billboard.Name = "FruitESP"
-                billboard.AlwaysOnTop = true
-                billboard.Size = UDim2.new(0, 160, 0, 25)
-                billboard.StudsOffset = Vector3.new(0, 2.5, 0)
-                billboard.MaxDistance = Settings.MaxESPDistance
-                billboard.Adornee = fruitData.Root
-                billboard.Parent = fruitData.Root
-                
-                local frame = Instance.new("Frame", billboard)
-                frame.BackgroundColor3, frame.BackgroundTransparency, frame.BorderSizePixel, frame.Size = Settings.ESPColor, Settings.ESPTransparency, 0, UDim2.new(1, 0, 1, 0)
-                Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 4)
-                
-                local label = Instance.new("TextLabel", frame)
-                label.BackgroundTransparency, label.Size, label.Font, label.TextColor3, label.TextScaled = 1, UDim2.new(1, 0, 1, 0), Enum.Font.GothamBold, Color3.new(1,1,1), true
-                
-                ESPObjects[fruitData.Fruit] = {Billboard = billboard, Label = label, FruitData = fruitData}
-            end
-        end
-        
         CachedFruits = newFruitList
         ScanCount = ScanCount + 1
         TotalFruitsFound = #newFruitList
-        ScanInProgress = false
-        table.clear(seen)
     end)
 end
 
-local function UpdateAllDistances()
-    for fruitInstance, esp in pairs(ESPObjects) do
-        if fruitInstance and esp.FruitData and esp.FruitData.Root and esp.FruitData.Root.Parent then
-            local dist = (esp.FruitData.Root.Position - PlayerPos).Magnitude
-            esp.Label.Text = string.format("🍈 %s #%d | %dm", esp.FruitData.Name, esp.FruitData.Rank, math.floor(dist))
-        end
-    end
-end
-
--- ========== DELTA-TIME FLY ENGINE ==========
-local function SmoothDeltaFly(targetFruitData)
+local function SmoothDeltaFly(targetRoot)
     local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not humanoid or not targetFruitData.Root then return end
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not humanoid or not targetRoot then return end
 
     EnablePhysicsBypass()
     humanoid.PlatformStand = true
 
     local startPos = hrp.Position
-    local targetWorldPos = targetFruitData.Root.Position
-    local skyY = math.max(startPos.Y, targetWorldPos.Y) + Settings.SkyAltitude
-    
-    local waypoints = {
-        Vector3.new(startPos.X, skyY, startPos.Z),
-        Vector3.new(targetWorldPos.X, skyY, targetWorldPos.Z),
-        targetWorldPos + Vector3.new(0, 2, 0)
+    local targetPos = targetRoot.Position
+    local skyY = math.max(startPos.Y, targetPos.Y) + Settings.SkyAltitude
+    local waypoints = { 
+        Vector3.new(startPos.X, skyY, startPos.Z), 
+        Vector3.new(targetPos.X, skyY, targetPos.Z), 
+        targetPos + Vector3.new(0, 1.5, 0) 
     }
 
     for _, point in ipairs(waypoints) do
-        while hrp and hrp.Parent and (hrp.Position - point).Magnitude > 5 do
-            -- حماية: إذا اختفت الفاكهة أثناء الطيران، أوقف الطيران فوراً
-            if not targetFruitData.Root or not targetFruitData.Root.Parent then break end
-            if not Settings.AutoFarmEnabled and IsFarmingFruit then break end
+        while hrp and hrp.Parent and targetRoot and targetRoot.Parent do
+            local dist = (hrp.Position - point).Magnitude
+            if dist < 5 then break end
             
             local dt = RunService.Heartbeat:Wait()
-            if not hrp or not hrp.Parent then break end
-            local dir = (point - hrp.Position).Unit
-            local moveAmount = dir * (Settings.FlySpeed * dt)
-            
-            if (hrp.Position - point).Magnitude <= moveAmount.Magnitude then
-                hrp.CFrame = CFrame.new(point)
-                break
-            else
-                hrp.CFrame = hrp.CFrame + moveAmount
-            end
+            local moveAmount = (point - hrp.Position).Unit * (Settings.FlySpeed * dt)
+            hrp.CFrame = (dist <= moveAmount.Magnitude) and CFrame.new(point) or (hrp.CFrame + moveAmount)
         end
     end
-
+    
     if humanoid then humanoid.PlatformStand = false end
     DisablePhysicsBypass()
 end
 
--- ========== AUTO FARM & SLOT 1 STORE LOGIC ==========
-local function StoreAllFruitsInBag()
-    local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
-    if not CommF then return end
-    
-    local function storeItem(item)
-        if item and item:IsA("Tool") then
-            pcall(function() CommF:InvokeServer("StoreFruit", item:GetAttribute("OriginalName") or item.Name, item) end)
-        end
-    end
-    
-    for _, item in ipairs(LocalPlayer.Backpack:GetChildren()) do storeItem(item) end
-    if LocalPlayer.Character then for _, item in ipairs(LocalPlayer.Character:GetChildren()) do storeItem(item) end end
-end
-
+-- ========== AUTO FARM LOGIC ==========
 local function AutoFarmLogic()
-    if not Settings.AutoFarmEnabled then 
-        IsFarmingFruit = false 
-        return 
-    end
+    if not Settings.AutoFarmEnabled then IsFarmingFruit = false return end
 
     if TotalFruitsFound == 0 then
-        if Settings.AutoHopEnabled and (tick() - ScriptStartTime > 12) then
-            ServerHop()
-        end
+        if Settings.AutoHopEnabled and ScanCount > 2 then ServerHop() end
         IsFarmingFruit = false
         return
     end
@@ -358,151 +232,107 @@ local function AutoFarmLogic()
     if IsFarmingFruit then return end
     IsFarmingFruit = true
 
-    local targetFruit = CachedFruits[1] 
-    if targetFruit and targetFruit.Root and targetFruit.Root.Parent then
-        SmoothDeltaFly(targetFruit)
+    local targetData = CachedFruits[1] 
+    if targetData and targetData.Root and targetData.Root.Parent then
+        SmoothDeltaFly(targetData.Root)
         
         local char = LocalPlayer.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            local hrp = char.HumanoidRootPart
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp and targetData.Root and targetData.Root.Parent then
             EnablePhysicsBypass()
             for i = 1, 3 do
-                if not targetFruit.Root or not targetFruit.Root.Parent then break end
-                hrp.CFrame = targetFruit.Root.CFrame
-                firetouchinterest(targetFruit.Root, hrp, 0)
+                if not targetData.Root or not targetData.Root.Parent then break end
+                hrp.CFrame = targetData.Root.CFrame
+                firetouchinterest(targetData.Root, hrp, 0)
                 task.wait(0.05)
-                if targetFruit.Root and targetFruit.Root.Parent then firetouchinterest(targetFruit.Root, hrp, 1) end
+                if targetData.Root and targetData.Root.Parent then firetouchinterest(targetData.Root, hrp, 1) end
             end
             DisablePhysicsBypass()
         end
         
-        -- حذف الفاكهة من الذاكرة فوراً لمنع تكرار الطيران صعوداً ونزولاً
+        -- حذف من الكاش فوراً لمنع التكرار والكراش
         table.remove(CachedFruits, 1)
         TotalFruitsFound = #CachedFruits
+        task.wait(1) 
         
-        -- تقليل وقت الانتظار من 10 ثواني إلى 1.5 ثانية (10 ثواني تسبب تجميد للفيزياء وكراش)
-        task.wait(1.5)
-        
-        local backpackTools = LocalPlayer.Backpack:GetChildren()
-        if #backpackTools > 0 then
-            local slot1Tool = backpackTools[1]
-            if slot1Tool and slot1Tool:IsA("Tool") and char and char:FindFirstChildOfClass("Humanoid") then
-                char:FindFirstChildOfClass("Humanoid"):EquipTool(slot1Tool)
-                task.wait(0.5)
+        local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+        if CommF then
+            local function Store(item)
+                if item:IsA("Tool") then pcall(function() CommF:InvokeServer("StoreFruit", item:GetAttribute("OriginalName") or item.Name, item) end) end
             end
+            for _, item in ipairs(LocalPlayer.Backpack:GetChildren()) do Store(item) end
+            if char then for _, item in ipairs(char:GetChildren()) do Store(item) end end
         end
-        
-        StoreAllFruitsInBag()
     end
-    
     IsFarmingFruit = false
 end
 
--- ========== UI ==========
+-- ========== ADJUSTABLE UI PANEL ==========
 local function CreateUI()
-    local oldGui = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild("FruitGUI_V16")
-    if oldGui then oldGui:Destroy() end
+    local old = CoreGui:FindFirstChild("UltimatePanel") or LocalPlayer.PlayerGui:FindFirstChild("UltimatePanel")
+    if old then old:Destroy() end
 
     local gui = Instance.new("ScreenGui")
-    gui.Name, gui.Parent = "FruitGUI_V16", LocalPlayer:WaitForChild("PlayerGui")
+    gui.Name = "UltimatePanel"
+    gui.Parent = (pcall(function() return CoreGui.Name end) and CoreGui) or LocalPlayer.PlayerGui
     
-    local main = Instance.new("Frame")
-    main.Size, main.Position, main.BackgroundColor3, main.BorderSizePixel, main.Parent = UDim2.new(0, 320, 0, 520), UDim2.new(0.5, -160, 0, 80), Color3.fromRGB(20,20,25), 0, gui
-    Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
+    local frame = Instance.new("Frame", gui)
+    frame.Size, frame.Position = UDim2.new(0, 250, 0, 150), UDim2.new(0, 50, 0, 50)
+    frame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    frame.Active, frame.Draggable = true, true
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
     
-    local title = Instance.new("TextLabel")
-    title.Size, title.BackgroundColor3, title.Font, title.TextColor3, title.TextScaled, title.Text, title.Parent = UDim2.new(1, 0, 0, 45), Color3.fromRGB(255,80,80), Enum.Font.GothamBlack, Color3.new(1,1,1), true, "🍈 FINAL ESP v16.6", main
-    Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
+    local title = Instance.new("TextLabel", frame)
+    title.Size, title.BackgroundColor3, title.Text, title.TextColor3 = UDim2.new(1, 0, 0, 30), Color3.fromRGB(40, 40, 50), "🚀 ULTIMATE AUTO ESP", Color3.new(1,1,1)
+    title.Font = Enum.Font.GothamBold
+    Instance.new("UICorner", title).CornerRadius = UDim.new(0, 8)
     
-    local dragging, startPos, frameStart = false, nil, nil
-    title.InputBegan:Connect(function(i) 
-        if i.UserInputType == Enum.UserInputType.MouseButton1 then 
-            dragging, startPos, frameStart = true, UserInputService:GetMouseLocation(), Vector2.new(main.Position.X.Offset, main.Position.Y.Offset) 
-        end 
-    end)
-    UserInputService.InputChanged:Connect(function(i) 
-        if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then 
-            local delta = UserInputService:GetMouseLocation() - startPos
-            main.Position = UDim2.new(0, frameStart.X + delta.X, 0, frameStart.Y + delta.Y) 
-        end 
-    end)
-    UserInputService.InputEnded:Connect(function(i) 
-        if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end 
-    end)
+    local status = Instance.new("TextLabel", frame)
+    status.Size, status.Position, status.BackgroundTransparency = UDim2.new(1, 0, 0, 30), UDim2.new(0, 0, 0, 35), 1
+    status.TextColor3, status.Font, status.Text = Color3.new(0.8,0.8,0.8), Enum.Font.Gotham, "Scanning..."
     
-    StatsLabel = Instance.new("TextLabel")
-    StatsLabel.Size, StatsLabel.Position, StatsLabel.BackgroundColor3, StatsLabel.Font, StatsLabel.TextColor3, StatsLabel.TextScaled, StatsLabel.Text, StatsLabel.Parent = UDim2.new(1, 0, 0, 25), UDim2.new(0, 0, 0, 50), Color3.fromRGB(40,40,45), Enum.Font.GothamBold, Color3.new(1,1,1), true, "🔍 Scans: 0 | Valid Fruits: 0", main
-    
-    local espBtn = Instance.new("TextButton", main)
-    espBtn.Size, espBtn.Position, espBtn.BackgroundColor3, espBtn.TextColor3, espBtn.Font, espBtn.TextScaled, espBtn.Text = UDim2.new(0, 90, 0, 32), UDim2.new(0, 10, 0, 80), Color3.fromRGB(60,60,65), Color3.new(1,1,1), Enum.Font.GothamBold, true, "ESP: ON"
-    
-    local farmBtn = Instance.new("TextButton", main)
-    farmBtn.Size, farmBtn.Position, farmBtn.BackgroundColor3, farmBtn.TextColor3, farmBtn.Font, farmBtn.TextScaled, farmBtn.Text = UDim2.new(0, 200, 0, 32), UDim2.new(0, 110, 0, 80), Color3.fromRGB(40,120,40), Color3.new(1,1,1), Enum.Font.GothamBold, true, "Auto Farm: ON"
+    local toggleFarm = Instance.new("TextButton", frame)
+    toggleFarm.Size, toggleFarm.Position = UDim2.new(0.9, 0, 0, 30), UDim2.new(0.05, 0, 0, 70)
+    toggleFarm.BackgroundColor3, toggleFarm.TextColor3, toggleFarm.Font = Color3.fromRGB(0, 150, 80), Color3.new(1,1,1), Enum.Font.GothamBold
+    toggleFarm.Text = "Auto Farm: ON"
+    Instance.new("UICorner", toggleFarm).CornerRadius = UDim.new(0, 5)
 
-    local hopBtn = Instance.new("TextButton", main)
-    hopBtn.Size, hopBtn.Position, hopBtn.BackgroundColor3, hopBtn.TextColor3, hopBtn.Font, hopBtn.TextScaled, hopBtn.Text = UDim2.new(0, 300, 0, 32), UDim2.new(0, 10, 0, 117), Color3.fromRGB(40,120,40), Color3.new(1,1,1), Enum.Font.GothamBold, true, "Auto Hop (If Empty): ON"
+    local toggleHop = Instance.new("TextButton", frame)
+    toggleHop.Size, toggleHop.Position = UDim2.new(0.9, 0, 0, 30), UDim2.new(0.05, 0, 0, 110)
+    toggleHop.BackgroundColor3, toggleHop.TextColor3, toggleHop.Font = Color3.fromRGB(0, 150, 80), Color3.new(1,1,1), Enum.Font.GothamBold
+    toggleHop.Text = "Medium Hop: ON"
+    Instance.new("UICorner", toggleHop).CornerRadius = UDim.new(0, 5)
 
-    local list = Instance.new("ScrollingFrame", main)
-    list.Size, list.Position, list.BackgroundColor3, list.BorderSizePixel, list.CanvasSize, list.ScrollBarThickness = UDim2.new(1, 0, 1, -155), UDim2.new(0, 0, 0, 155), Color3.fromRGB(35,35,40), 0, UDim2.new(0, 0, 0, 43 * 32), 5
-    local layout = Instance.new("UIListLayout", list)
-    layout.Padding, layout.SortOrder = UDim.new(0, 2), Enum.SortOrder.LayoutOrder
-    
-    local sorted = {}
-    for name, rank in pairs(FruitRanks) do table.insert(sorted, {Name=name, Rank=rank}) end
-    table.sort(sorted, function(a,b) return a.Rank > b.Rank end) 
-    
-    for _, fruit in ipairs(sorted) do
-        local btn = Instance.new("TextButton", list)
-        btn.Size, btn.Position, btn.BackgroundColor3, btn.TextColor3, btn.Font, btn.TextScaled, btn.Text = UDim2.new(1, -8, 0, 28), UDim2.new(0, 4, 0, 0), Color3.fromRGB(50,50,55), Color3.new(1,1,1), Enum.Font.GothamMedium, true, string.format("#%d - %s", fruit.Rank, fruit.Name)
-        btn.LayoutOrder = 100 - fruit.Rank
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
-        
-        btn.MouseButton1Click:Connect(function()
-            for _, cached in ipairs(CachedFruits) do
-                if cached.Name == fruit.Name and cached.Root then SmoothDeltaFly(cached) break end
-            end
-        end)
-    end
-    
-    espBtn.MouseButton1Click:Connect(function()
-        Settings.ESPEnabled = not Settings.ESPEnabled
-        espBtn.Text, espBtn.BackgroundColor3 = (Settings.ESPEnabled and "ESP: ON" or "ESP: OFF"), (Settings.ESPEnabled and Color3.fromRGB(60,60,65) or Color3.fromRGB(120,40,40))
-        if not Settings.ESPEnabled then for f, esp in pairs(ESPObjects) do if esp.Billboard then esp.Billboard:Destroy() end end ESPObjects = {} end
-    end)
-    
-    farmBtn.MouseButton1Click:Connect(function()
+    toggleFarm.MouseButton1Click:Connect(function()
         Settings.AutoFarmEnabled = not Settings.AutoFarmEnabled
-        farmBtn.Text, farmBtn.BackgroundColor3 = (Settings.AutoFarmEnabled and "Auto Farm: ON" or "Auto Farm: OFF"), (Settings.AutoFarmEnabled and Color3.fromRGB(40,120,40) or Color3.fromRGB(60,60,65))
-        if not Settings.AutoFarmEnabled then DisablePhysicsBypass() end
+        toggleFarm.Text = "Auto Farm: " .. (Settings.AutoFarmEnabled and "ON" or "OFF")
+        toggleFarm.BackgroundColor3 = Settings.AutoFarmEnabled and Color3.fromRGB(0, 150, 80) or Color3.fromRGB(150, 50, 50)
+    end)
+    
+    toggleHop.MouseButton1Click:Connect(function()
+        Settings.AutoHopEnabled = not Settings.AutoHopEnabled
+        toggleHop.Text = "Medium Hop: " .. (Settings.AutoHopEnabled and "ON" or "OFF")
+        toggleHop.BackgroundColor3 = Settings.AutoHopEnabled and Color3.fromRGB(0, 150, 80) or Color3.fromRGB(150, 50, 50)
     end)
 
-    hopBtn.MouseButton1Click:Connect(function()
-        Settings.AutoHopEnabled = not Settings.AutoHopEnabled
-        hopBtn.Text, hopBtn.BackgroundColor3 = (Settings.AutoHopEnabled and "Auto Hop (If Empty): ON" or "Auto Hop (If Empty): OFF"), (Settings.AutoHopEnabled and Color3.fromRGB(40,120,40) or Color3.fromRGB(60,60,65))
+    task.spawn(function()
+        while task.wait(1) do
+            if status then status.Text = string.format("Fruits Found: %d", TotalFruitsFound) end
+        end
     end)
 end
 
 -- ========== MAIN LOOP ==========
 task.spawn(function()
+    CreateUI()
     while true do
-        pcall(function()
-            local char = LocalPlayer.Character
-            if char and char:FindFirstChild("HumanoidRootPart") then PlayerPos = char.HumanoidRootPart.Position end
-            
-            UpdateAllDistances()
-            if StatsLabel then StatsLabel.Text = string.format("🔍 Scans: %d | 🍈 Valid Fruits: %d", ScanCount, TotalFruitsFound) end
-            
-            if tick() - LastScan >= Settings.ScanInterval and not ScanInProgress then
-                ScanFullMap()
-                LastScan = tick()
-            end
-            
-            task.spawn(AutoFarmLogic)
-        end)
+        if tick() - LastScan >= Settings.ScanInterval then
+            ScanFullMap()
+            LastScan = tick()
+        end
+        task.spawn(AutoFarmLogic)
         task.wait(0.5)
     end
 end)
 
-CreateUI()
-task.defer(ScanFullMap)
-print("🍈 FINAL ESP v16.6 LOADED - FAST MODE + ANTI-BOUNCE ENABLED")
+print("✅ ULTIMATE ESP INJECTED SUCCESSFULLY")
