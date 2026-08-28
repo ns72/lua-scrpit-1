@@ -1,5 +1,5 @@
 --[[
-    BLOX FRUITS - ULTIMATE ESP v16.1 (SYNTAX FIX + DELTA FLY + AUTO HOP)
+    BLOX FRUITS - ULTIMATE ESP v16.3 (AUTO MARINES + AUTO EXECUTE FIX)
 ]]
 
 local Players = game:GetService("Players")
@@ -20,17 +20,32 @@ local Settings = {
     SkyAltitude = 400,
     MaxESPDistance = 999999,
     MaxValidDistance = 999999, 
-    ScanInterval = 3,
+    ScanInterval = 4,
     ESPColor = Color3.fromRGB(255, 80, 80),
     ESPTransparency = 0.3,
+    -- تم إزالة علامة التعليق (--) لكي يعمل كود النقل التلقائي بنجاح
     AutoExecuteScript = [[
-        -- loadstring(game:HttpGet("https://raw.githubusercontent.com/ns72/lua-scrpit-1/refs/heads/main/luascrpit1"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ns72/lua-scrpit-1/refs/heads/main/luascrpit1"))()
     ]]
 }
 
+-- ========== AUTO JOIN MARINES ==========
+local function AutoJoinMarines()
+    pcall(function()
+        local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
+        if CommF then
+            -- اختيار فريق المارينز (Marines) تلقائياً عند تشغيل السكربت
+            CommF:InvokeServer("SetTeam", "Marines")
+        end
+    end)
+end
+
+-- تشغيل اختيار الفريق فوراً
+AutoJoinMarines()
+
 -- ========== FRUIT DATABASE ==========
 local FruitRanks = {
-    ["Rocket"]=1, ["Spin"]=2,  ["Fruit"]=44, ["Fruits"]=0, ["Spring"]=4, ["Bomb"]=5,
+    ["Rocket"]=1, ["Spin"]=2, ["Fruit"]=44, ["Fruits"]=0, ["Spring"]=4, ["Bomb"]=5,
     ["Smoke"]=6, ["Spike"]=7, ["Flame"]=8, ["Ice"]=9, ["Sand"]=10,
     ["Dark"]=11, ["Eagle"]=12, ["Diamond"]=13, ["Light"]=14,
     ["Rubber"]=15, ["Ghost"]=16, ["Magma"]=17, ["Quake"]=18,
@@ -61,10 +76,12 @@ local ZeroGravityConn = nil
 
 -- ========== HELPERS ==========
 local function GetRootPart(item)
+    if not item or not item.Parent then return nil end
     return item:FindFirstChild("Handle") or item:FindFirstChild("MeshPart") or item:FindFirstChild("Base") or item:FindFirstChildOfClass("BasePart")
 end
 
 local function MatchFruit(name)
+    if not name then return nil, nil end
     local clean = name:gsub("%s+",""):gsub("%-",""):gsub("%_",""):lower()
     for fruit, rank in pairs(FruitRanks) do
         if clean:find(fruit:lower()) then return fruit, rank end
@@ -78,7 +95,7 @@ local function EnablePhysicsBypass()
         NoclipConn = RunService.Stepped:Connect(function()
             local char = LocalPlayer.Character
             if char then
-                for _, v in pairs(char:GetDescendants()) do
+                for _, v in pairs(char:GetChildren()) do
                     if v:IsA("BasePart") then v.CanCollide = false end
                 end
             end
@@ -106,9 +123,9 @@ local function ServerHop()
     if IsHopping then return end
     IsHopping = true
     
-    local queueFunc = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport)
+    local queueFunc = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport) or getgenv().queue_on_teleport
     if queueFunc then
-        queueFunc(Settings.AutoExecuteScript)
+        pcall(function() queueFunc(Settings.AutoExecuteScript) end)
     end
 
     local PlaceID = game.PlaceId
@@ -132,24 +149,24 @@ local function ServerHop()
     end
 end
 
--- ========== SMART SCANNER ==========
+-- ========== OPTIMIZED SCANNER ==========
 local function ScanFullMap()
     if ScanInProgress then return end
     ScanInProgress = true
     
-    coroutine.wrap(function()
+    task.spawn(function()
         local newFruitList = {}
         local seen = {}
         local processed = 0
-        local descendants = Workspace:GetDescendants()
+        local descendants = Workspace:GetChildren()
         
         for i = 1, #descendants do
             local desc = descendants[i]
-            if desc:IsA("Tool") or desc:IsA("Model") then
+            if desc and (desc:IsA("Tool") or desc:IsA("Model")) then
                 local fruitName, rank = MatchFruit(desc.Name)
                 if fruitName and rank and not seen[fruitName] then
                     local root = GetRootPart(desc)
-                    if root and root.Position.Y > -500 then
+                    if root and root.Parent and root.Position.Y > -500 then
                         local dist = (root.Position - PlayerPos).Magnitude
                         seen[fruitName] = true
                         table.insert(newFruitList, {Fruit = desc, Root = root, Name = fruitName, Rank = rank, Dist = dist})
@@ -158,14 +175,14 @@ local function ScanFullMap()
             end
             
             processed = processed + 1
-            if processed % 50 == 0 then RunService.Heartbeat:Wait() end
+            if processed % 20 == 0 then RunService.Heartbeat:Wait() end
         end
         
         table.sort(newFruitList, function(a,b) return a.Rank > b.Rank end)
         
         for fruitInstance, esp in pairs(ESPObjects) do
-            if not fruitInstance.Parent or not esp.FruitData.Root.Parent then
-                esp.Billboard:Destroy()
+            if not fruitInstance or not fruitInstance.Parent or not esp.FruitData.Root or not esp.FruitData.Root.Parent then
+                if esp.Billboard then esp.Billboard:Destroy() end
                 ESPObjects[fruitInstance] = nil
             end
         end
@@ -196,12 +213,12 @@ local function ScanFullMap()
         ScanCount = ScanCount + 1
         TotalFruitsFound = #newFruitList
         ScanInProgress = false
-    end)()
+    end)
 end
 
 local function UpdateAllDistances()
     for fruitInstance, esp in pairs(ESPObjects) do
-        if fruitInstance and esp.FruitData.Root and esp.FruitData.Root.Parent then
+        if fruitInstance and esp.FruitData and esp.FruitData.Root and esp.FruitData.Root.Parent then
             local dist = (esp.FruitData.Root.Position - PlayerPos).Magnitude
             esp.Label.Text = string.format("🍈 %s #%d | %dm", esp.FruitData.Name, esp.FruitData.Rank, math.floor(dist))
         end
@@ -233,6 +250,7 @@ local function SmoothDeltaFly(targetWorldPos)
             if not Settings.AutoFarmEnabled and IsFarmingFruit then break end
             
             local dt = RunService.Heartbeat:Wait()
+            if not hrp or not hrp.Parent then break end
             local dir = (point - hrp.Position).Unit
             local moveAmount = dir * (Settings.FlySpeed * dt)
             
@@ -245,19 +263,21 @@ local function SmoothDeltaFly(targetWorldPos)
         end
     end
 
-    humanoid.PlatformStand = false
+    if humanoid then humanoid.PlatformStand = false end
     DisablePhysicsBypass()
 end
 
--- ========== AUTO FARM LOGIC ==========
+-- ========== AUTO FARM & SLOT 1 STORE LOGIC ==========
 local function StoreAllFruitsInBag()
     local CommF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
     if not CommF then return end
+    
     local function storeItem(item)
-        if item:IsA("Tool") and (item.Name:lower():find("fruit") or item:GetAttribute("OriginalName")) then
+        if item and item:IsA("Tool") then
             pcall(function() CommF:InvokeServer("StoreFruit", item:GetAttribute("OriginalName") or item.Name, item) end)
         end
     end
+    
     for _, item in ipairs(LocalPlayer.Backpack:GetChildren()) do storeItem(item) end
     if LocalPlayer.Character then for _, item in ipairs(LocalPlayer.Character:GetChildren()) do storeItem(item) end end
 end
@@ -297,7 +317,17 @@ local function AutoFarmLogic()
             DisablePhysicsBypass()
         end
         
-        task.wait(0.2) 
+        task.wait(10)
+        
+        local backpackTools = LocalPlayer.Backpack:GetChildren()
+        if #backpackTools > 0 then
+            local slot1Tool = backpackTools[1]
+            if slot1Tool and slot1Tool:IsA("Tool") and char and char:FindFirstChildOfClass("Humanoid") then
+                char:FindFirstChildOfClass("Humanoid"):EquipTool(slot1Tool)
+                task.wait(0.5)
+            end
+        end
+        
         StoreAllFruitsInBag()
     end
     
@@ -314,7 +344,7 @@ local function CreateUI()
     Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
     
     local title = Instance.new("TextLabel")
-    title.Size, title.BackgroundColor3, title.Font, title.TextColor3, title.TextScaled, title.Text, title.Parent = UDim2.new(1, 0, 0, 45), Color3.fromRGB(255,80,80), Enum.Font.GothamBlack, Color3.new(1,1,1), true, "🍈 FINAL ESP v16.1", main
+    title.Size, title.BackgroundColor3, title.Font, title.TextColor3, title.TextScaled, title.Text, title.Parent = UDim2.new(1, 0, 0, 45), Color3.fromRGB(255,80,80), Enum.Font.GothamBlack, Color3.new(1,1,1), true, "🍈 FINAL ESP v16.3", main
     Instance.new("UICorner", title).CornerRadius = UDim.new(0, 12)
     
     local dragging, startPos, frameStart = false, nil, nil
@@ -362,7 +392,7 @@ local function CreateUI()
         
         btn.MouseButton1Click:Connect(function()
             for _, cached in ipairs(CachedFruits) do
-                if cached.Name == fruit.Name then SmoothDeltaFly(cached.Root.Position) break end
+                if cached.Name == fruit.Name and cached.Root then SmoothDeltaFly(cached.Root.Position) break end
             end
         end)
     end
@@ -370,7 +400,7 @@ local function CreateUI()
     espBtn.MouseButton1Click:Connect(function()
         Settings.ESPEnabled = not Settings.ESPEnabled
         espBtn.Text, espBtn.BackgroundColor3 = (Settings.ESPEnabled and "ESP: ON" or "ESP: OFF"), (Settings.ESPEnabled and Color3.fromRGB(60,60,65) or Color3.fromRGB(120,40,40))
-        if not Settings.ESPEnabled then for f, esp in pairs(ESPObjects) do esp.Billboard:Destroy() end ESPObjects = {} end
+        if not Settings.ESPEnabled then for f, esp in pairs(ESPObjects) do if esp.Billboard then esp.Billboard:Destroy() end end ESPObjects = {} end
     end)
     
     farmBtn.MouseButton1Click:Connect(function()
@@ -386,7 +416,7 @@ local function CreateUI()
 end
 
 -- ========== MAIN LOOP ==========
-coroutine.wrap(function()
+task.spawn(function()
     while true do
         pcall(function()
             local char = LocalPlayer.Character
@@ -396,7 +426,7 @@ coroutine.wrap(function()
             if StatsLabel then StatsLabel.Text = string.format("🔍 Scans: %d | 🍈 Valid Fruits: %d", ScanCount, TotalFruitsFound) end
             
             if tick() - LastScan >= Settings.ScanInterval and not ScanInProgress then
-                task.spawn(ScanFullMap)
+                ScanFullMap()
                 LastScan = tick()
             end
             
@@ -404,8 +434,8 @@ coroutine.wrap(function()
         end)
         task.wait(0.5)
     end
-end)()
+end)
 
 CreateUI()
 task.defer(ScanFullMap)
-print("🍈 FINAL ESP v16.1 LOADED - SYNTAX ERROR FIXED")
+print("🍈 FINAL ESP v16.3 LOADED - MARINES AUTO-JOIN & RESTART FIXED")
