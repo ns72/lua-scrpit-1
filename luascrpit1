@@ -1,5 +1,5 @@
 --[[
-    BLOX FRUITS - ULTIMATE ESP v16.6 (OPTIMIZED + FAST MODE + NO CRASH)
+    BLOX FRUITS - ULTIMATE ESP v16.6 (OPTIMIZED + AUTO FAST MODE + NO CRASH)
 ]]
 
 local Players = game:GetService("Players")
@@ -17,8 +17,8 @@ local Settings = {
     ESPEnabled = true,
     AutoFarmEnabled = true, 
     AutoHopEnabled = true,  
-    FastModeEnabled = true,
-    FlySpeed = 320,
+    FastModeEnabled = true, -- مفعل تلقائياً
+    FlySpeed = 160,
     SkyAltitude = 400,
     MaxESPDistance = 999999,
     MaxValidDistance = 999999, 
@@ -288,7 +288,6 @@ local function SmoothDeltaFly(targetFruitInfo)
 
     for _, point in ipairs(waypoints) do
         while hrp and hrp.Parent and (hrp.Position - point).Magnitude > 5 do
-            -- التوقف فوراً إذا تم اختفاء الفاكهة أو التقاطها
             if not targetFruitInfo.Root or not targetFruitInfo.Root.Parent or not targetFruitInfo.Fruit:IsDescendantOf(Workspace) then 
                 break 
             end
@@ -362,7 +361,6 @@ local function AutoFarmLogic()
             DisablePhysicsBypass()
         end
         
-        -- تم تقليل وقت الانتظار لمنع التعليق
         task.wait(1)
         
         local backpackTools = LocalPlayer.Backpack:GetChildren()
@@ -375,12 +373,9 @@ local function AutoFarmLogic()
         end
         
         StoreAllFruitsInBag()
-        
-        -- تنظيف الفاكهة من الذاكرة فوراً لمنع تكرار الطيران إليها
         table.remove(CachedFruits, 1)
         ScanFullMap()
     else
-        -- إذا كانت الفاكهة غير موجودة أصلاً بالعالم، احذفها من القائمة
         table.remove(CachedFruits, 1)
     end
     
@@ -428,9 +423,8 @@ local function CreateUI()
     local hopBtn = Instance.new("TextButton", main)
     hopBtn.Size, hopBtn.Position, hopBtn.BackgroundColor3, hopBtn.TextColor3, hopBtn.Font, hopBtn.TextScaled, hopBtn.Text = UDim2.new(0, 145, 0, 32), UDim2.new(0, 10, 0, 117), Color3.fromRGB(40,120,40), Color3.new(1,1,1), Enum.Font.GothamBold, true, "Auto Hop: ON"
 
-    -- إضافة زر Fast Mode الجديد
     local fastModeBtn = Instance.new("TextButton", main)
-    fastModeBtn.Size, fastModeBtn.Position, fastModeBtn.BackgroundColor3, fastModeBtn.TextColor3, fastModeBtn.Font, fastModeBtn.TextScaled, fastModeBtn.Text = UDim2.new(0, 145, 0, 32), UDim2.new(0, 165, 0, 117), Color3.fromRGB(60,60,65), Color3.new(1,1,1), Enum.Font.GothamBold, true, "Fast Mode: OFF"
+    fastModeBtn.Size, fastModeBtn.Position, fastModeBtn.BackgroundColor3, fastModeBtn.TextColor3, fastModeBtn.Font, fastModeBtn.TextScaled, fastModeBtn.Text = UDim2.new(0, 145, 0, 32), UDim2.new(0, 165, 0, 117), Color3.fromRGB(40,120,40), Color3.new(1,1,1), Enum.Font.GothamBold, true, "Fast Mode: ON"
 
     local list = Instance.new("ScrollingFrame", main)
     list.Size, list.Position, list.BackgroundColor3, list.BorderSizePixel, list.CanvasSize, list.ScrollBarThickness = UDim2.new(1, 0, 1, -160), UDim2.new(0, 0, 0, 160), Color3.fromRGB(35,35,40), 0, UDim2.new(0, 0, 0, 43 * 32), 5
@@ -501,4 +495,8 @@ end)
 
 CreateUI()
 task.defer(ScanFullMap)
-print("🍈 FINAL ESP v16.6 LOADED - OPTIMIZED FOR NO CRASH")
+
+-- تفعيل الوضع السريع تلقائياً فور تشغيل السكربت
+if Settings.FastModeEnabled then ToggleFastMode() end
+
+print("🍈 FINAL ESP v16.6 LOADED - OPTIMIZED & AUTO FAST MODE")
