@@ -1,0 +1,236 @@
+-- ==========================================
+-- Blox Fruits: Gorilla King Instinct Haki Trainer (Tween Fly + UI + Auto Hop)
+-- ==========================================
+
+-- ضع رابط الـ Raw المباشر لسكربتك هنا لإعادة تشغيله في السيرفر الجديد تلقائياً
+local RawScriptURL = "https://raw.githubusercontent.com/ns72/lua-scrpit-1/refs/heads/main/luascrpit6"
+
+repeat task.wait() until game:IsLoaded()
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+local HakiKey = Enum.KeyCode.E
+local GorillaSpawnCFrame = CFrame.new(-1235, 15, -486)
+local FlySpeed = 250 -- سرعة الطيران (موزونة لمنع الروباند)
+local AutoFarm = true
+
+-- [ 1. إعادة التشغيل التلقائي عند دخول سيرفر جديد ]
+local queueFunc = queue_on_teleport or (syn and syn.queue_on_teleport) or (fluxus and fluxus.queue_on_teleport) or getgenv().queue_on_teleport
+if queueFunc and RawScriptURL ~= "" then
+    pcall(function()
+        queueFunc('loadstring(game:HttpGet("' .. RawScriptURL .. '"))()')
+    end)
+end
+
+-- [ 2. الدخول التلقائي لفريق البحرية Marines ]
+local function AutoJoinMarines()
+    repeat task.wait(0.5) until LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
+    local remotes = ReplicatedStorage:WaitForChild("Remotes", 15)
+    local commF = remotes and remotes:WaitForChild("CommF_", 15)
+    
+    if commF then
+        for i = 1, 10 do
+            pcall(function() commF:InvokeServer("SetTeam", "Marines") end)
+            if LocalPlayer.Team and (LocalPlayer.Team.Name == "Marines" or LocalPlayer.Team.Name == "Marine") then
+                break
+            end
+            task.wait(0.5)
+        end
+    end
+    repeat task.wait(0.5) until LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+end
+
+-- [ 3. دالة الطيران السلس (Tween Fly) لمنع الرجوع للخلف ]
+local function FlyTo(targetCFrame)
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
+    
+    local distance = (hrp.Position - targetCFrame.Position).Magnitude
+    local duration = distance / FlySpeed
+    
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
+    
+    -- إلغاء التصادم للجسم أثناء الطيران
+    local noclipConn = RunService.Stepped:Connect(function()
+        for _, part in pairs(char:GetChildren()) do
+            if part:IsA("BasePart") then part.CanCollide = false end
+        end
+    end)
+    
+    tween:Play()
+    tween.Completed:Wait()
+    noclipConn:Disconnect()
+end
+
+-- [ 4. واجهة المستخدم UI ]
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local Title = Instance.new("TextLabel")
+local StatusLabel = Instance.new("TextLabel")
+local ToggleBtn = Instance.new("TextButton")
+
+ScreenGui.Name = "GorillaHakiUI_Fly"
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
+
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.05, 0, 0.35, 0)
+MainFrame.Size = UDim2.new(0, 260, 0, 130)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+Title.Parent = MainFrame
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+Title.Text = "تلفيل الهاكي - طيران (Auto Hop)"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 13
+Title.Font = Enum.Font.SourceSansBold
+
+StatusLabel.Parent = MainFrame
+StatusLabel.Position = UDim2.new(0, 10, 0, 35)
+StatusLabel.Size = UDim2.new(1, -20, 0, 40)
+StatusLabel.BackgroundTransparency = 1
+StatusLabel.Text = "الحالة: جاري البدء..."
+StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 127)
+StatusLabel.TextSize = 12
+StatusLabel.TextWrapped = true
+
+ToggleBtn.Parent = MainFrame
+ToggleBtn.Position = UDim2.new(0, 10, 0, 80)
+ToggleBtn.Size = UDim2.new(1, -20, 0, 40)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
+ToggleBtn.Text = "السكربت: مفعل"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.TextSize = 14
+ToggleBtn.Font = Enum.Font.SourceSansBold
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    AutoFarm = not AutoFarm
+    if AutoFarm then
+        ToggleBtn.Text = "السكربت: مفعل"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
+    else
+        ToggleBtn.Text = "السكربت: متوقف"
+        ToggleBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+        StatusLabel.Text = "الحالة: تم الإيقاف"
+    end
+end)
+
+-- [ 5. التنقل بين السيرفرات Server Hop ]
+local function ServerHop()
+    StatusLabel.Text = "جاري الانتقال لسيرفر جديد..."
+    local PlaceId = game.PlaceId
+    
+    pcall(function()
+        local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+        if servers and servers.data then
+            for _, server in ipairs(servers.data) do
+                if server.playing < server.maxPlayers - 1 and server.id ~= game.JobId then
+                    TeleportService:TeleportToPlaceInstance(PlaceId, server.id, LocalPlayer)
+                    task.wait(4)
+                    break
+                end
+            end
+        end
+    end)
+    
+    task.wait(1)
+    pcall(function() TeleportService:Teleport(PlaceId, LocalPlayer) end)
+end
+
+-- [ 6. البحث عن البوس ]
+local function GetGorillaKing()
+    local enemies = workspace:FindFirstChild("Enemies")
+    if enemies then
+        for _, enemy in pairs(enemies:GetChildren()) do
+            if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and enemy:FindFirstChild("HumanoidRootPart") then
+                if string.find(string.lower(enemy.Name), "gorilla king") then
+                    return enemy
+                end
+            end
+        end
+    end
+    for _, enemy in pairs(workspace:GetChildren()) do
+        if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and enemy:FindFirstChild("HumanoidRootPart") then
+            if string.find(string.lower(enemy.Name), "gorilla king") then
+                return enemy
+            end
+        end
+    end
+    return nil
+end
+
+-- [ 7. التسلسل التشغيلي ]
+task.spawn(function()
+    AutoJoinMarines()
+    if not AutoFarm then return end
+    
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    
+    if hrp then
+        -- ترك الأسلحة (الأيدي فارغة)
+        if char:FindFirstChildOfClass("Humanoid") then
+            char:FindFirstChildOfClass("Humanoid"):UnequipTools()
+        end
+        
+        -- 1. الطيران إلى موقع جزيرة بوس القرود
+        StatusLabel.Text = "جاري الطيران إلى جزيرة القرود..."
+        FlyTo(GorillaSpawnCFrame)
+        
+        task.wait(1) -- مهلة بسيطة لتحميل مجسمات الجزيرة
+        
+        -- 2. فحص وجود البوس
+        local boss = GetGorillaKing()
+        
+        if boss and boss:FindFirstChild("HumanoidRootPart") and boss.Humanoid.Health > 0 then
+            StatusLabel.Text = "البوس موجود! الطيران أمامه للتلفيل..."
+            
+            -- الطيران مباشرة لموقع البوس
+            FlyTo(boss.HumanoidRootPart.CFrame * CFrame.new(0, 0, 4))
+            
+            -- التثبيت وإلغاء التصادم أثناء الضرب
+            local connection
+            connection = RunService.Heartbeat:Connect(function()
+                if not AutoFarm or not boss or not boss:FindFirstChild("HumanoidRootPart") or boss.Humanoid.Health <= 0 then
+                    if connection then connection:Disconnect() end
+                    return
+                end
+                for _, part in pairs(char:GetChildren()) do
+                    if part:IsA("BasePart") then part.CanCollide = false end
+                end
+                hrp.CFrame = boss.HumanoidRootPart.CFrame * CFrame.new(0, 0, 4)
+            end)
+            
+            -- تفعيل الهاكي
+            task.wait(0.3)
+            VirtualInputManager:SendKeyEvent(true, HakiKey, false, game)
+            task.wait(0.1)
+            VirtualInputManager:SendKeyEvent(false, HakiKey, false, game)
+            
+            -- فترة استهلاك المراوغات (8.5 ثوانٍ)
+            task.wait(8.5)
+            
+            if connection then connection:Disconnect() end
+            if AutoFarm then ServerHop() end
+        else
+            -- إذا البوس غير موجود يغير السيرفر فوراً
+            StatusLabel.Text = "البوس غير موجود! تغيير السيرفر..."
+            task.wait(0.5)
+            if AutoFarm then ServerHop() end
+        end
+    end
+end)
